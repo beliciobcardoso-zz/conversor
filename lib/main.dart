@@ -9,6 +9,15 @@ const request =
 void main() async {
   runApp(
     MaterialApp(
+      theme: ThemeData(
+          scaffoldBackgroundColor: Colors.black,
+          primaryColor: Colors.amber,
+          hintColor: Colors.amber,
+          inputDecorationTheme: InputDecorationTheme(
+            enabledBorder: OutlineInputBorder(
+              borderSide: BorderSide(color: Colors.white),
+            ),
+          )),
       title: "Conversor",
       home: MyHome(),
       debugShowCheckedModeBanner: false,
@@ -22,15 +31,88 @@ class MyHome extends StatefulWidget {
 }
 
 class _MyHomeState extends State<MyHome> {
+  final realController = TextEditingController();
+  final dolarController = TextEditingController();
+  final euroController = TextEditingController();
+
+  double dolar;
+  double euro;
+
+  void _realCharge(String text) {
+    double real = double.parse(text);
+    dolarController.text = (real / dolar).toStringAsFixed(2);
+    euroController.text = (real / euro).toStringAsFixed(2);
+  }
+
+  void _dolarCharge(String text) {
+    double dolar = double.parse(text);
+    realController.text = (dolar * this.dolar).toStringAsFixed(2);
+    euroController.text = (dolar * this.dolar / euro).toStringAsFixed(2);
+  }
+
+  void _euroCharge(String text) {
+    double euro = double.parse(text);
+    dolarController.text = (euro * this.euro / dolar).toStringAsFixed(2);
+    realController.text = (euro * this.euro).toStringAsFixed(2);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text("\$ Conversor \$"),
-        backgroundColor: Colors.amber,
         centerTitle: true,
       ),
-      body: Container(),
+      body: FutureBuilder<Map>(
+        future: getData(),
+        builder: (context, snapshot) {
+          switch (snapshot.connectionState) {
+            case ConnectionState.none:
+            case ConnectionState.waiting:
+              return Center(
+                child: Text("Carregando Dados....",
+                    style: TextStyle(color: Colors.amber, fontSize: 25.0),
+                    textAlign: TextAlign.center),
+              );
+
+            default:
+              if (snapshot.hasError) {
+                return Center(
+                  child: Text(
+                    "Erro ao Carregar Dados",
+                    style: TextStyle(color: Colors.amber, fontSize: 25.0),
+                    textAlign: TextAlign.center,
+                  ),
+                );
+              } else {
+                dolar = snapshot.data["results"]["currencies"]["USD"]["buy"];
+                euro = snapshot.data["results"]["currencies"]["EUR"]["buy"];
+
+                return SingleChildScrollView(
+                  padding: EdgeInsets.all(10.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      Icon(
+                        Icons.monetization_on,
+                        size: 150.0,
+                        color: Colors.amber,
+                      ),
+                      buildTextField(
+                          "Reais", "R\$ ", realController, _realCharge),
+                      Divider(),
+                      buildTextField(
+                          "Dolares", "US\$ ", dolarController, _dolarCharge),
+                      Divider(),
+                      buildTextField(
+                          "Euros", "ER€ ", euroController, _euroCharge),
+                    ],
+                  ),
+                );
+              }
+          }
+        },
+      ),
     );
   }
 }
@@ -38,4 +120,19 @@ class _MyHomeState extends State<MyHome> {
 Future<Map> getData() async {
   http.Response response = await http.get(request);
   return json.decode(response.body);
+}
+
+Widget buildTextField(String label, String prefix,
+    TextEditingController controlher, Function carregar) {
+  return TextField(
+    style: TextStyle(color: Colors.amber),
+    controller: controlher,
+    decoration: InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(color: Colors.amber),
+        border: OutlineInputBorder(),
+        prefixText: prefix),
+    onChanged: carregar,
+    keyboardType: TextInputType.number,
+  );
 }
